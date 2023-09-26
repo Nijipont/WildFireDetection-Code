@@ -1,64 +1,105 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
+#GENERAL
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+#PATH PROCESS
 import os
+import os.path
+from pathlib import Path
+import glob
+#IMAGE PROCESS
+from PIL import Image
+from keras.preprocessing import image
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import cv2
+from keras.applications.vgg16 import preprocess_input, decode_predictions
+#SCALER & TRANSFORMATION
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
+from keras.utils import to_categorical
+from sklearn.model_selection import train_test_split
+from keras import regularizers
+from sklearn.preprocessing import LabelEncoder
+#ACCURACY CONTROL
+from sklearn.metrics import confusion_matrix, accuracy_score, classification_report, roc_auc_score, roc_curve
+from sklearn.model_selection import GridSearchCV, cross_val_score
+from sklearn.metrics import mean_squared_error, r2_score
+#OPTIMIZER
+from keras.optimizers import RMSprop,Adam,Optimizer,Optimizer
+#MODEL LAYERS
+from tensorflow.keras.models import Sequential
+from keras.layers import Dense, Dropout, Flatten, Conv2D, MaxPool2D, BatchNormalization,MaxPooling2D,BatchNormalization,\
+                        Permute, TimeDistributed, Bidirectional,GRU, SimpleRNN, LSTM, GlobalAveragePooling2D, SeparableConv2D
+from keras import models
+from keras import layers
+import tensorflow as tf
+from keras.applications import VGG16,VGG19,inception_v3
+from keras import backend as K
+from keras.utils import plot_model
+#SKLEARN CLASSIFIER
+from xgboost import XGBClassifier, XGBRegressor
+from lightgbm import LGBMClassifier, LGBMRegressor
+from catboost import CatBoostClassifier, CatBoostRegressor
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
+from sklearn.ensemble import BaggingRegressor
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.neural_network import MLPClassifier, MLPRegressor
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.cross_decomposition import PLSRegression
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import RidgeCV
+from sklearn.linear_model import Lasso
+from sklearn.linear_model import LassoCV
+from sklearn.linear_model import ElasticNet
+from sklearn.linear_model import ElasticNetCV
+#IGNORING WARNINGS
+from warnings import filterwarnings
+filterwarnings("ignore",category=DeprecationWarning)
+filterwarnings("ignore", category=FutureWarning) 
+filterwarnings("ignore", category=UserWarning)
 
-# ตรวจสอบการใช้งาน GPU (ถ้ามี)
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+#Path and Labels
+Fire_Dataset_Path = Path("Dataset\Training and Validation") #ดึงDataset มาใช้
 
-# การเตรียมข้อมูล
-data_transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-])
+JPG_Path = list(Fire_Dataset_Path.glob(r"*/*.jpg")) #กำหนดDirของไฟล์jpgทุกรูป
 
-data_dir = 'D:\Work\WildFireDetection\Dataset'
-train_dataset = datasets.ImageFolder(os.path.join(data_dir, "train"), transform=data_transform)
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+JPG_Labels = list(map(lambda x: os.path.split(os.path.split(x)[0])[1],JPG_Path)) #ตั้งค่าLabelให้โดยดูLabelจากชื่อไฟล์แม่
 
-# สร้างโมเดล CNN
-class WildfireDetectionModel(nn.Module):
-    def __init__(self):
-        super(WildfireDetectionModel, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
-        self.fc1 = nn.Linear(128 * 56 * 56, 256)
-        self.fc2 = nn.Linear(256, 2)
+print("FIRE: ", JPG_Labels.count("fire"))
+print("NO_FIRE: ", JPG_Labels.count("nofire"))
 
-    def forward(self, x):
-        x = torch.relu(self.conv1(x))
-        x = torch.relu(self.conv2(x))
-        x = x.view(x.size(0), -1)
-        x = torch.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
+#Transfrom to series
+JPG_Path_Series = pd.Series(JPG_Path,name="JPG").astype(str)
+JPG_Labels_Series = pd.Series(JPG_Labels,name="CATEGORY")
 
-model = WildfireDetectionModel().to(device)
+Main_Train_Data = pd.concat([JPG_Path_Series,JPG_Labels_Series],axis=1)
+#print(Main_Train_Data.head(-1))
 
-# กำหนดค่า loss function และ optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+#Shuffle Train data
+Main_Train_Data = Main_Train_Data.sample(frac=1).reset_index(drop=True)
+print(Main_Train_Data.head(-1))
 
-# เทรนโมเดล
-num_epochs = 10
-for epoch in range(num_epochs):
-    model.train()
-    running_loss = 0.0
-    for images, labels in train_loader:
-        images, labels = images.to(device), labels.to(device)
-        optimizer.zero_grad()
-        outputs = model(images)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-        running_loss += loss.item()
-    
-    print(f"Epoch [{epoch+1}/{num_epochs}] Loss: {running_loss/len(train_loader):.4f}")
+#plot graph
+#plt.style.use("dark_background")
+#sns.countplot(data = Main_Train_Data,x = "CATEGORY")
+#plt.show()
+#Main_Train_Data['CATEGORY'].value_counts().plot.pie(figsize=(5,5))
+#plt.show()
 
-print("Training complete!")
+#Train&Test Generator
+Train_Generator = ImageDataGenerator(rescale=1./255,shear_range=0.3,zoom_range=0.2,brightness_range=[0.2,0.9],rotation_range=30,
+                                    horizontal_flip=True,vertical_flip=True,fill_mode="nearest",validation_split=0.1)
+Test_Generator = ImageDataGenerator(rescale=1./255)
 
-# บันทึกโมเดล
-torch.save(model.state_dict(), "wildfire_detection_model.pth")
+Train_Data,Test_Data = train_test_split(Main_Train_Data,train_size=0.9,random_state=42,shuffle=True)
+print("TRAIN SHAPE: ",Train_Data.shape)
+print("TEST SHAPE: ",Test_Data.shape)
+
+print(Train_Data.head(-1))
+print("----"*20)
+print(Test_Data.head(-1))
