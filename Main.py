@@ -103,3 +103,77 @@ print("TEST SHAPE: ",Test_Data.shape)
 print(Train_Data.head(-1))
 print("----"*20)
 print(Test_Data.head(-1))
+
+#Generator to Tensor
+Train_IMG_Set = Train_Generator.flow_from_dataframe(dataframe=Train_Data,
+                                                   x_col="JPG",
+                                                   y_col="CATEGORY",
+                                                   color_mode="rgb",
+                                                   class_mode="categorical",
+                                                   batch_size=32,
+                                                   subset="training")
+
+Validation_IMG_Set = Train_Generator.flow_from_dataframe(dataframe=Train_Data,
+                                                   x_col="JPG",
+                                                   y_col="CATEGORY",
+                                                   color_mode="rgb",
+                                                   class_mode="categorical",
+                                                   batch_size=32,
+                                                   subset="validation")
+
+Test_IMG_Set = Test_Generator.flow_from_dataframe(dataframe=Test_Data,
+                                                 x_col="JPG",
+                                                 y_col="CATEGORY",
+                                                 color_mode="rgb",
+                                                 class_mode="categorical",
+                                                 batch_size=32)
+
+#CNN-RCNN
+#Neurak Network model
+Model = Sequential()
+
+Model.add(Conv2D(12,(3,3),activation="relu",
+                        input_shape=(256,256,3)))
+Model.add(BatchNormalization())
+Model.add(MaxPooling2D((2,2)))
+
+#
+Model.add(Conv2D(24,(3,3),
+                 activation="relu"))
+Model.add(Dropout(0.2))
+Model.add(MaxPooling2D((2,2)))
+
+#
+Model.add(TimeDistributed(Flatten()))
+Model.add(Bidirectional(LSTM(32,
+                                  return_sequences=True,
+                                  dropout=0.5,
+                                  recurrent_dropout=0.5)))
+Model.add(Bidirectional(GRU(32,
+                                  return_sequences=True,
+                                  dropout=0.5,
+                                  recurrent_dropout=0.5)))
+
+#
+Model.add(Flatten())
+
+Model.add(Dense(256,activation="relu"))
+Model.add(Dropout(0.5))
+Model.add(Dense(2,activation="softmax"))
+
+
+Call_Back = tf.keras.callbacks.EarlyStopping(monitor="loss",patience=5,mode="min")
+
+Model.compile(optimizer="rmsprop",loss="binary_crossentropy",metrics=["accuracy"])
+
+#RCNN TRAIN
+RCNN_Model = Model.fit(Train_IMG_Set,
+                          validation_data=Validation_IMG_Set,
+                          callbacks=Call_Back,
+                      epochs=100)
+
+print(Model.summary())
+
+Model_Results = Model.evaluate(Test_IMG_Set)
+print("LOSS:  " + "%.4f" % Model_Results[0])
+print("ACCURACY:  " + "%.2f" % Model_Results[1])
