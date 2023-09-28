@@ -130,7 +130,8 @@ Test_IMG_Set = Test_Generator.flow_from_dataframe(dataframe=Test_Data,
 
 #CNN-RCNN
 #Neurak Network model
-Model = Sequential()
+
+Model = Sequential([])
 
 Model.add(Conv2D(12,(3,3),activation="relu",
                         input_shape=(256,256,3)))
@@ -168,12 +169,44 @@ Model.compile(optimizer="rmsprop",loss="binary_crossentropy",metrics=["accuracy"
 
 #RCNN TRAIN
 RCNN_Model = Model.fit(Train_IMG_Set,
-                          validation_data=Validation_IMG_Set,
-                          callbacks=Call_Back,
-                      epochs=100)
+                        validation_data=Validation_IMG_Set,
+                        callbacks=Call_Back,
+                        epochs=100)
 
 print(Model.summary())
 
 Model_Results = Model.evaluate(Test_IMG_Set)
 print("LOSS:  " + "%.4f" % Model_Results[0])
 print("ACCURACY:  " + "%.2f" % Model_Results[1])
+
+#Test
+Prediction_One = Model.predict(Test_IMG_Set)
+Prediction_One = Prediction_One.argmax(axis=-1)
+
+print(Prediction_One)
+
+#Prediction_Class_One = np.argmax(Model.predict(Test_IMG_Set), axis=1)
+
+fig, axes = plt.subplots(nrows=8,
+                         ncols=8,
+                         figsize=(20, 20),
+                        subplot_kw={'xticks': [], 'yticks': []})
+
+for i, ax in enumerate(axes.flat):
+    ax.imshow(cv2.imread(Test_Data["JPG"].iloc[i]))
+    ax.set_title(f"TEST:{Test_Data.CATEGORY.iloc[i]}\n PREDICTION:{Prediction_One[i]}")
+plt.tight_layout()
+plt.show()
+
+#Test for different source
+
+#image_path = "../input/test-dataset/Fire-Detection/1/12.jpg"
+#img = image.load_img(image_path,target_size=(256,256))
+#x = image.img_to_array(img)
+#x = np.expand_dims(x,axis=0)
+
+#Diff_Pred = Model.predict(x)
+#Diff_Pred = Diff_Pred.argmax(axis=-1)
+#print(Diff_Pred)
+
+
