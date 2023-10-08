@@ -96,7 +96,7 @@ Train_Generator = ImageDataGenerator(rescale=1./255,shear_range=0.3,zoom_range=0
                                     horizontal_flip=True,vertical_flip=True,fill_mode="nearest",validation_split=0.1)
 Test_Generator = ImageDataGenerator(rescale=1./255)
 
-Train_Data,Test_Data = train_test_split(Main_Train_Data,train_size=0.9,random_state=42,shuffle=True)
+Train_Data,Test_Data = train_test_split(Main_Train_Data,train_size=0.8,random_state=42,shuffle=True)
 print("TRAIN SHAPE: ",Train_Data.shape)
 print("TEST SHAPE: ",Test_Data.shape)
 
@@ -133,15 +133,15 @@ Test_IMG_Set = Test_Generator.flow_from_dataframe(dataframe=Test_Data,
 
 Model = Sequential([])
 
-Model.add(Conv2D(12,(3,3),activation="relu",
+Model.add(Conv2D(64,(3,3),activation="relu",
                         input_shape=(256,256,3)))
 Model.add(BatchNormalization())
 Model.add(MaxPooling2D((2,2)))
 
 #
-Model.add(Conv2D(24,(3,3),
+Model.add(Conv2D(128,(3,3),
                  activation="relu"))
-Model.add(Dropout(0.2))
+Model.add(Dropout(0.3))
 Model.add(MaxPooling2D((2,2)))
 
 #
@@ -163,50 +163,21 @@ Model.add(Dropout(0.5))
 Model.add(Dense(2,activation="softmax"))
 
 
-Call_Back = tf.keras.callbacks.EarlyStopping(monitor="loss",patience=5,mode="min")
+Call_Back = tf.keras.callbacks.EarlyStopping(monitor="loss",patience=10,mode="min")
 
-Model.compile(optimizer="rmsprop",loss="binary_crossentropy",metrics=["accuracy"])
+Model.compile(optimizer=Adam(learning_rate=0.001),loss="binary_crossentropy",metrics=["accuracy"])
+
+
 
 #RCNN TRAIN
 RCNN_Model = Model.fit(Train_IMG_Set,
                         validation_data=Validation_IMG_Set,
                         callbacks=Call_Back,
-                        epochs=100)
+                        epochs=50)
 
+Model.save('rcnn_model.h5')
 print(Model.summary())
 
 Model_Results = Model.evaluate(Test_IMG_Set)
 print("LOSS:  " + "%.4f" % Model_Results[0])
 print("ACCURACY:  " + "%.2f" % Model_Results[1])
-
-#Test
-Prediction_One = Model.predict(Test_IMG_Set)
-Prediction_One = Prediction_One.argmax(axis=-1)
-
-print(Prediction_One)
-
-#Prediction_Class_One = np.argmax(Model.predict(Test_IMG_Set), axis=1)
-
-fig, axes = plt.subplots(nrows=8,
-                         ncols=8,
-                         figsize=(20, 20),
-                        subplot_kw={'xticks': [], 'yticks': []})
-
-for i, ax in enumerate(axes.flat):
-    ax.imshow(cv2.imread(Test_Data["JPG"].iloc[i]))
-    ax.set_title(f"TEST:{Test_Data.CATEGORY.iloc[i]}\n PREDICTION:{Prediction_One[i]}")
-plt.tight_layout()
-plt.show()
-
-#Test for different source
-
-#image_path = "../input/test-dataset/Fire-Detection/1/12.jpg"
-#img = image.load_img(image_path,target_size=(256,256))
-#x = image.img_to_array(img)
-#x = np.expand_dims(x,axis=0)
-
-#Diff_Pred = Model.predict(x)
-#Diff_Pred = Diff_Pred.argmax(axis=-1)
-#print(Diff_Pred)
-
-
